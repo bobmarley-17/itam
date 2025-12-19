@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block page_icon %}history{% endblock %}
+{% block page_title %}History Log{% endblock %}
+
+{% block content %}
+<div class="table-card">
+    <h5 class="mb-4"><i class="fas fa-history me-2"></i>Asset History Log</h5>
+    
+    <!-- Filters -->
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-4">
+            <input type="text" name="search" class="form-control" placeholder="Search asset tag or description..." value="{{ search }}">
+        </div>
+        <div class="col-md-4">
+            <select name="action" class="form-select">
+                <option value="">All Actions</option>
+                <option value="created" {% if selected_action == 'created' %}selected{% endif %}>Created</option>
+                <option value="assigned" {% if selected_action == 'assigned' %}selected{% endif %}>Assigned</option>
+                <option value="unassigned" {% if selected_action == 'unassigned' %}selected{% endif %}>Unassigned</option>
+                <option value="maintenance" {% if selected_action == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                <option value="updated" {% if selected_action == 'updated' %}selected{% endif %}>Updated</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-filter me-1"></i> Filter</button>
+        </div>
+    </form>
+    
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Date/Time</th>
+                    <th>Asset</th>
+                    <th>Action</th>
+                    <th>Description</th>
+                    <th>Performed By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in history %}
+                <tr>
+                    <td>{{ h.created_at|date:"M d, Y H:i" }}</td>
+                    <td>
+                        <a href="{% url 'assets:asset_detail' h.asset.pk %}">
+                            {{ h.asset.asset_tag }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if h.action == 'created' %}
+                        <span class="badge bg-success">Created</span>
+                        {% elif h.action == 'assigned' %}
+                        <span class="badge bg-primary">Assigned</span>
+                        {% elif h.action == 'unassigned' %}
+                        <span class="badge bg-warning">Unassigned</span>
+                        {% elif h.action == 'maintenance' %}
+                        <span class="badge bg-info">Maintenance</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ h.get_action_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ h.description|truncatewords:15 }}</td>
+                    <td>{{ h.performed_by.username|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">No history records found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

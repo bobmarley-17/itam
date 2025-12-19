@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Asset Management Tool{% endblock %}</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --sidebar-width: 260px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f1f5f9;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, #1e1b4b 0%, #312e81 100%);
+            padding: 0;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar-brand {
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 700;
+            padding: 1.5rem;
+            background: rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-brand i {
+            font-size: 1.5rem;
+            color: #818cf8;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 1rem 0;
+            margin: 0;
+        }
+
+        .sidebar-menu-title {
+            color: #a5b4fc;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 1rem 1.5rem 0.5rem;
+        }
+
+        .sidebar-menu li a {
+            color: #c7d2fe;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-menu li a:hover,
+        .sidebar-menu li a.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: #818cf8;
+        }
+
+        .sidebar-menu li a i {
+            margin-right: 0.75rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-menu .badge {
+            margin-left: auto;
+            font-size: 0.7rem;
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+        }
+
+        .top-navbar {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .top-navbar h5 {
+            margin: 0;
+            color: #1e293b;
+        }
+
+        .content-area {
+            padding: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .table-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border: none;
+            border-radius: 8px;
+        }
+
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+
+        .badge {
+            font-weight: 500;
+            padding: 0.4em 0.8em;
+            border-radius: 6px;
+        }
+
+        .table th {
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .dropdown-menu {
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .mobile-menu-toggle {
+                display: block;
+            }
+        }
+
+        /* Scrollbar for sidebar */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+
+        /* Print styles */
+        @media print {
+            .sidebar, .top-navbar, .no-print {
+                display: none !important;
+            }
+            .main-content {
+                margin-left: 0 !important;
+            }
+            .content-area {
+                padding: 0 !important;
+            }
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <i class="fas fa-cube"></i>
+            <span>Asset Tool</span>
+        </div>
+
+        <ul class="sidebar-menu">
+            <!-- Main -->
+            <li class="sidebar-menu-title">Main</li>
+            <li>
+                <a href="{% url 'assets:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <i class="fas fa-chart-line"></i> Dashboard
+                </a>
+            </li>
+
+            <!-- Asset Management -->
+            <li class="sidebar-menu-title">Asset Management</li>
+            <li>
+                <a href="{% url 'assets:asset_list' %}" class="{% if 'asset' in request.resolver_match.url_name and 'export' not in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-laptop"></i> Assets
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'assets:employee_list' %}" class="{% if 'employee' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-users"></i> Employees
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'assets:maintenance_list' %}" class="{% if 'maintenance' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-wrench"></i> Maintenance
+                </a>
+            </li>
+
+            <!-- Reports & Analytics -->
+            <li class="sidebar-menu-title">Reports & Analytics</li>
+            <li>
+                <a href="{% url 'assets:history_list' %}" class="{% if 'history' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-history"></i> History Log
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'assets:reports' %}" class="{% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
+                    <i class="fas fa-chart-bar"></i> Reports
+                </a>
+            </li>
+
+            <!-- Quick Actions -->
+            <li class="sidebar-menu-title">Quick Actions</li>
+            <li>
+                <a href="/admin/assets/asset/add/">
+                    <i class="fas fa-plus-circle"></i> Add Asset
+                </a>
+            </li>
+            <li>
+                <a href="/admin/assets/employee/add/">
+                    <i class="fas fa-user-plus"></i> Add Employee
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'assets:bulk_import' %}" class="{% if 'bulk_import' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-file-upload"></i> Bulk Import
+                </a>
+            </li>
+
+            <!-- Export -->
+            <li class="sidebar-menu-title">Export</li>
+            <li>
+                <a href="{% url 'assets:export_assets' %}">
+                    <i class="fas fa-file-excel"></i> Export Excel
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'assets:generate_all_assets_pdf' %}">
+                    <i class="fas fa-file-pdf"></i> Export PDF
+                </a>
+            </li>
+
+            <!-- System (Admin Only) -->
+            <li class="sidebar-menu-title">System</li>
+            {% if request.user.is_superuser %}
+            <li>
+                <a href="{% url 'assets:user_list' %}" class="{% if 'user' in request.resolver_match.url_name and 'employee' not in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-users-cog"></i> User Management
+                </a>
+            </li>
+            {% endif %}
+            <li>
+                <a href="/admin/">
+                    <i class="fas fa-cog"></i> Admin Panel
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Navbar -->
+        <nav class="top-navbar">
+            <div class="d-flex align-items-center gap-3">
+                <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h5 class="mb-0"><i class="fas fa-{% block page_icon %}home{% endblock %} me-2"></i>{% block page_title %}Dashboard{% endblock %}</h5>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <!-- Search -->
+                <form action="{% url 'assets:asset_list' %}" method="get" class="d-none d-md-block">
+                    <div class="input-group">
+                        <input type="text" name="search" class="form-control form-control-sm" placeholder="Search assets..." style="width: 200px;">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Notifications Dropdown -->
+                <div class="dropdown">
+                    <a href="#" class="text-muted position-relative" data-bs-toggle="dropdown">
+                        <i class="fas fa-bell fa-lg"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;">
+                            3
+                        </span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" style="width: 300px;">
+                        <li><h6 class="dropdown-header">Notifications</h6></li>
+                        <li><a class="dropdown-item" href="{% url 'assets:reports' %}">
+                            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                            <small>Warranties expiring soon</small>
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'assets:maintenance_list' %}">
+                            <i class="fas fa-wrench text-info me-2"></i>
+                            <small>Pending maintenance</small>
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-center text-primary" href="{% url 'assets:reports' %}">View all</a></li>
+                    </ul>
+                </div>
+                
+                <!-- User Dropdown -->
+                <div class="dropdown">
+                    <a href="#" class="text-decoration-none text-dark d-flex align-items-center gap-2" data-bs-toggle="dropdown">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            {{ request.user.username|slice:":1"|upper }}
+                        </div>
+                        <div class="d-none d-md-block">
+                            <small class="text-muted d-block" style="line-height: 1;">Welcome,</small>
+                            <span style="line-height: 1;">{{ request.user.username }}</span>
+                        </div>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <div class="dropdown-header">
+                                <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+                                <br><small class="text-muted">{{ request.user.email }}</small>
+                            </div>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'assets:dashboard' %}">
+                                <i class="fas fa-home me-2"></i>Dashboard
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="/admin/">
+                                <i class="fas fa-cog me-2"></i>Admin Panel
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="/admin/password_change/">
+                                <i class="fas fa-key me-2"></i>Change Password
+                            </a>
+                        </li>
+                        {% if request.user.is_superuser %}
+                        <li>
+                            <a class="dropdown-item" href="{% url 'assets:user_list' %}">
+                                <i class="fas fa-users-cog me-2"></i>User Management
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="/admin/logout/">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Messages -->
+        {% if messages %}
+        <div class="content-area pb-0">
+            {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' or message.tags == 'danger' %}times-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Content Area -->
+        <div class="content-area">
+            {% block content %}{% endblock %}
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center py-3 text-muted border-top bg-white mt-auto">
+            <small>&copy; {% now "Y" %} Asset Management Tool. All rights reserved.</small>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Toggle sidebar on mobile
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('show');
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            
+            if (window.innerWidth <= 992) {
+                if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
+                    sidebar.classList.remove('show');
+                }
+            }
+        });
+
+        // Auto-hide alerts after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                setTimeout(function() {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 5000);
+            });
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

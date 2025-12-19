@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block page_icon %}file-alt{% endblock %}
+{% block page_title %}Reports{% endblock %}
+
+{% block content %}
+<!-- Export Buttons -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h5><i class="fas fa-file-alt me-2"></i>Reports & Analytics</h5>
+    <div>
+        <a href="{% url 'assets:export_assets' %}" class="btn btn-success">
+            <i class="fas fa-file-excel me-1"></i> Export Assets
+        </a>
+        <a href="{% url 'assets:export_employees' %}" class="btn btn-success">
+            <i class="fas fa-file-excel me-1"></i> Export Employees
+        </a>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-laptop fa-2x text-primary mb-2"></i>
+            <h3>{{ total_assets }}</h3>
+            <p class="text-muted mb-0">Total Assets</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-rupee-sign fa-2x text-success mb-2"></i>
+            <h3>₹{{ total_value|floatformat:0 }}</h3>
+            <p class="text-muted mb-0">Total Value</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-shield-alt fa-2x text-info mb-2"></i>
+            <h3>{{ warranty_valid }}</h3>
+            <p class="text-muted mb-0">Under Warranty</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+            <h3>{{ warranty_expiring }}</h3>
+            <p class="text-muted mb-0">Warranty Expiring Soon</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Assets by Status -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <h6 class="mb-3"><i class="fas fa-chart-pie me-2"></i>Assets by Status</h6>
+            <table class="table">
+                <thead>
+                    <tr><th>Status</th><th>Count</th></tr>
+                </thead>
+                <tbody>
+                    {% for item in status_counts %}
+                    <tr>
+                        <td>{{ item.status|title }}</td>
+                        <td><span class="badge bg-primary">{{ item.count }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Assets by Category -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <h6 class="mb-3"><i class="fas fa-tags me-2"></i>Assets by Category</h6>
+            <table class="table">
+                <thead>
+                    <tr><th>Category</th><th>Count</th><th>Value</th></tr>
+                </thead>
+                <tbody>
+                    {% for cat in category_counts %}
+                    <tr>
+                        <td><i class="{{ cat.icon }} me-2"></i>{{ cat.name }}</td>
+                        <td><span class="badge bg-primary">{{ cat.count }}</span></td>
+                        <td>₹{{ cat.total_value|floatformat:0|default:"0" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Assets by Location -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <h6 class="mb-3"><i class="fas fa-map-marker-alt me-2"></i>Assets by Location</h6>
+            <table class="table">
+                <thead>
+                    <tr><th>Location</th><th>Count</th></tr>
+                </thead>
+                <tbody>
+                    {% for loc in location_counts %}
+                    <tr>
+                        <td>{{ loc }}</td>
+                        <td><span class="badge bg-primary">{{ loc.count }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Assets by Department -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <h6 class="mb-3"><i class="fas fa-building me-2"></i>Assets by Department</h6>
+            <table class="table">
+                <thead>
+                    <tr><th>Department</th><th>Assets</th></tr>
+                </thead>
+                <tbody>
+                    {% for dept in department_counts %}
+                    <tr>
+                        <td>{{ dept.name }}</td>
+                        <td><span class="badge bg-primary">{{ dept.asset_count }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

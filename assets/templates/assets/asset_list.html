@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Asset List{% endblock %}
+
+{% block content %}
+<div class="table-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">All Assets</h5>
+        <a href="/admin/assets/asset/add/" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add New Asset
+        </a>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for asset in assets %}
+                <tr>
+                    <td>#{{ asset.id }}</td>
+                    <td>{{ asset.name }}</td>
+                    <td>{{ asset.asset_type }}</td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>
+                        <a href="/admin/assets/asset/{{ asset.id }}/change/" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p>No assets found. <a href="/admin/assets/asset/add/">Add your first asset</a></p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

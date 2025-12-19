@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+
+{% block page_icon %}chart-line{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Stat Cards Row -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="text-muted mb-1">Total Assets</p>
+                    <h3 class="mb-0">{{ total_assets }}</h3>
+                </div>
+                <div class="stat-icon" style="background: #dbeafe; color: #2563eb;">
+                    <i class="fas fa-laptop"></i>
+                </div>
+            </div>
+            <small class="text-muted">₹{{ total_value|floatformat:0 }} total value</small>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="text-muted mb-1">Available</p>
+                    <h3 class="mb-0" style="color: #10b981;">{{ available_assets }}</h3>
+                </div>
+                <div class="stat-icon" style="background: #d1fae5; color: #059669;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+            </div>
+            <small class="text-success">Ready for assignment</small>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="text-muted mb-1">Assigned</p>
+                    <h3 class="mb-0" style="color: #3b82f6;">{{ assigned_assets }}</h3>
+                </div>
+                <div class="stat-icon" style="background: #dbeafe; color: #2563eb;">
+                    <i class="fas fa-user-check"></i>
+                </div>
+            </div>
+            <small class="text-primary">Currently in use</small>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="text-muted mb-1">Employees</p>
+                    <h3 class="mb-0" style="color: #8b5cf6;">{{ total_employees }}</h3>
+                </div>
+                <div class="stat-icon" style="background: #ede9fe; color: #7c3aed;">
+                    <i class="fas fa-users"></i>
+                </div>
+            </div>
+            <small class="text-muted">Active employees</small>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="table-card h-100">
+            <h6 class="mb-3"><i class="fas fa-chart-pie me-2"></i>Assets by Status</h6>
+            <canvas id="statusChart" height="200"></canvas>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="table-card h-100">
+            <h6 class="mb-3"><i class="fas fa-chart-doughnut me-2"></i>Assets by Category</h6>
+            <canvas id="categoryChart" height="200"></canvas>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="table-card h-100">
+            <h6 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Monthly Additions</h6>
+            <canvas id="monthlyChart" height="200"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Row -->
+<div class="row g-4">
+    <!-- Recent Assets -->
+    <div class="col-lg-8">
+        <div class="table-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Recent Assets</h5>
+                <a href="{% url 'assets:asset_list' %}" class="btn btn-primary btn-sm">
+                    View All <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Asset Tag</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for asset in recent_assets %}
+                        <tr>
+                            <td><strong>{{ asset.asset_tag }}</strong></td>
+                            <td>{{ asset.name|truncatewords:4 }}</td>
+                            <td>
+                                {% if asset.category %}
+                                <i class="{{ asset.category.icon }} me-1"></i>{{ asset.category.name }}
+                                {% else %}-{% endif %}
+                            </td>
+                            <td>
+                                {% if asset.status == 'available' %}
+                                <span class="badge bg-success">Available</span>
+                                {% elif asset.status == 'assigned' %}
+                                <span class="badge bg-primary">Assigned</span>
+                                {% elif asset.status == 'maintenance' %}
+                                <span class="badge bg-warning">Maintenance</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ asset.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'assets:asset_detail' asset.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">
+                                No assets found. <a href="/admin/assets/asset/add/">Add your first asset</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="table-card mb-4">
+            <h6 class="mb-3"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+            <div class="d-grid gap-2">
+                <a href="/admin/assets/asset/add/" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Add Asset
+                </a>
+                <a href="{% url 'assets:bulk_import' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-file-upload me-2"></i>Bulk Import
+                </a>
+                <a href="{% url 'assets:export_assets' %}" class="btn btn-outline-success">
+                    <i class="fas fa-file-excel me-2"></i>Export Excel
+                </a>
+                <a href="{% url 'assets:generate_all_assets_pdf' %}" class="btn btn-outline-danger">
+                    <i class="fas fa-file-pdf me-2"></i>Export PDF
+                </a>
+            </div>
+        </div>
+        
+        <!-- Warranty Alerts -->
+        <div class="table-card mb-4">
+            <h6 class="mb-3"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Warranty Expiring</h6>
+            {% for asset in expiring_warranty %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <a href="{% url 'assets:asset_detail' asset.pk %}">{{ asset.asset_tag }}</a>
+                    <small class="d-block text-muted">{{ asset.name|truncatewords:3 }}</small>
+                </div>
+                <span class="badge bg-warning">{{ asset.warranty_expiry }}</span>
+            </div>
+            {% empty %}
+            <p class="text-muted text-center mb-0">No warranties expiring soon</p>
+            {% endfor %}
+        </div>
+        
+        <!-- Recent Activity -->
+        <div class="table-card">
+            <h6 class="mb-3"><i class="fas fa-history me-2"></i>Recent Activity</h6>
+            {% for activity in recent_activity %}
+            <div class="d-flex mb-3">
+                <div class="me-3">
+                    {% if activity.action == 'created' %}
+                    <span class="badge bg-success"><i class="fas fa-plus"></i></span>
+                    {% elif activity.action == 'assigned' %}
+                    <span class="badge bg-primary"><i class="fas fa-user-check"></i></span>
+                    {% elif activity.action == 'unassigned' %}
+                    <span class="badge bg-warning"><i class="fas fa-user-minus"></i></span>
+                    {% else %}
+                    <span class="badge bg-secondary"><i class="fas fa-edit"></i></span>
+                    {% endif %}
+                </div>
+                <div class="flex-grow-1">
+                    <small class="d-block"><a href="{% url 'assets:asset_detail' activity.asset.pk %}">{{ activity.asset.asset_tag }}</a></small>
+                    <small class="text-muted">{{ activity.description|truncatewords:6 }}</small>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-muted text-center">No activity yet</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Status Chart
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ status_labels|safe }},
+        datasets: [{
+            data: {{ status_counts|safe }},
+            backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#6b7280'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { boxWidth: 12, padding: 10 }
+            }
+        }
+    }
+});
+
+// Category Chart
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+new Chart(categoryCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ category_labels|safe }},
+        datasets: [{
+            data: {{ category_counts|safe }},
+            backgroundColor: ['#4f46e5', '#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706', '#dc2626', '#6b7280'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { boxWidth: 12, padding: 10 }
+            }
+        }
+    }
+});
+
+// Monthly Chart
+const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+new Chart(monthlyCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ monthly_labels|safe }},
+        datasets: [{
+            label: 'Assets Added',
+            data: {{ monthly_counts|safe }},
+            backgroundColor: '#4f46e5',
+            borderRadius: 5
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+</script>
+{% endblock %}

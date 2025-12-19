@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Asset Label - {{ asset.asset_tag }}</title>
+    <style>
+        @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .label {
+            border: 2px solid #000;
+            padding: 20px;
+            width: 400px;
+            margin: 20px auto;
+        }
+        .label-header {
+            text-align: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        .label-header h2 {
+            margin: 0;
+            color: #4f46e5;
+        }
+        .label-body {
+            display: flex;
+            gap: 20px;
+        }
+        .qr-code {
+            flex-shrink: 0;
+        }
+        .qr-code img {
+            width: 120px;
+            height: 120px;
+        }
+        .info {
+            flex-grow: 1;
+        }
+        .info p {
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        .info strong {
+            display: inline-block;
+            width: 80px;
+        }
+        .asset-tag {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #4f46e5;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 5px;
+        }
+        .btn-secondary {
+            background: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align: center; margin-bottom: 20px;">
+        <button onclick="window.print()" class="btn">🖨️ Print Label</button>
+        <a href="{% url 'assets:asset_detail' asset.pk %}" class="btn btn-secondary">← Back</a>
+    </div>
+    
+    <div class="label">
+        <div class="label-header">
+            <h2>IT ASSET</h2>
+            <small>Property of Your Company</small>
+        </div>
+        
+        <div class="label-body">
+            <div class="qr-code">
+                <img src="{% url 'assets:generate_qr_code' asset.pk %}" alt="QR Code">
+            </div>
+            <div class="info">
+                <p><strong>Name:</strong> {{ asset.name }}</p>
+                <p><strong>Category:</strong> {{ asset.category.name|default:"N/A" }}</p>
+                <p><strong>Serial:</strong> {{ asset.serial_number|default:"N/A" }}</p>
+                <p><strong>Model:</strong> {{ asset.manufacturer }} {{ asset.model }}</p>
+            </div>
+        </div>
+        
+        <div class="asset-tag">
+            {{ asset.asset_tag }}
+        </div>
+    </div>
+</body>
+</html>

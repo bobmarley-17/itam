@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block page_icon %}laptop{% endblock %}
+{% block page_title %}Asset Details{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Asset Info Card -->
+        <div class="table-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0">
+                    {% if asset.category %}<i class="{{ asset.category.icon }} me-2"></i>{% endif %}
+                    {{ asset.name }}
+                </h4>
+                <div>
+                    {% if asset.status == 'available' %}
+                    <span class="badge bg-success fs-6">Available</span>
+                    {% elif asset.status == 'assigned' %}
+                    <span class="badge bg-primary fs-6">Assigned</span>
+                    {% elif asset.status == 'maintenance' %}
+                    <span class="badge bg-warning fs-6">Maintenance</span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-6">{{ asset.get_status_display }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-borderless">
+                        <tr><th width="40%">Asset Tag</th><td><strong>{{ asset.asset_tag }}</strong></td></tr>
+                        <tr><th>Category</th><td>{{ asset.category.name|default:"-" }}</td></tr>
+                        <tr><th>Manufacturer</th><td>{{ asset.manufacturer|default:"-" }}</td></tr>
+                        <tr><th>Model</th><td>{{ asset.model|default:"-" }}</td></tr>
+                        <tr><th>Serial Number</th><td>{{ asset.serial_number|default:"-" }}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="table table-borderless">
+                        <tr><th width="40%">Condition</th><td>{{ asset.get_condition_display }}</td></tr>
+                        <tr><th>Location</th><td>{{ asset.location|default:"-" }}</td></tr>
+                        <tr><th>Purchase Date</th><td>{{ asset.purchase_date|default:"-" }}</td></tr>
+                        <tr><th>Purchase Cost</th><td>{% if asset.purchase_cost %}₹{{ asset.purchase_cost }}{% else %}-{% endif %}</td></tr>
+                        <tr>
+                            <th>Warranty</th>
+                            <td>
+                                {% if asset.is_under_warranty %}
+                                <span class="text-success"><i class="fas fa-check-circle"></i> Valid until {{ asset.warranty_expiry }}</span>
+                                {% elif asset.warranty_expiry %}
+                                <span class="text-danger"><i class="fas fa-times-circle"></i> Expired</span>
+                                {% else %}-{% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            {% if asset.description %}
+            <div class="mt-3">
+                <strong>Description:</strong>
+                <p class="text-muted">{{ asset.description }}</p>
+            </div>
+            {% endif %}
+            
+            <hr>
+            
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="/admin/assets/asset/{{ asset.pk }}/change/" class="btn btn-primary">
+                    <i class="fas fa-edit me-1"></i> Edit Asset
+                </a>
+                
+                {% if asset.status == 'available' %}
+                <a href="{% url 'assets:assign_asset' asset.pk %}" class="btn btn-success">
+                    <i class="fas fa-user-plus me-1"></i> Assign to Employee
+                </a>
+                {% elif asset.status == 'assigned' %}
+                <a href="{% url 'assets:unassign_asset' asset.pk %}" class="btn btn-warning">
+                    <i class="fas fa-user-minus me-1"></i> Unassign
+                </a>
+                {% endif %}
+                
+                <a href="{% url 'assets:asset_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to List
+                </a>
+            </div>
+        </div>
+        
+        <!-- History -->
+        <div class="table-card">
+            <h5 class="mb-3"><i class="fas fa-history me-2"></i>Asset History</h5>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr><th>Date</th><th>Action</th><th>Description</th><th>By</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for h in history %}
+                        <tr>
+                            <td>{{ h.created_at|date:"M d, Y H:i" }}</td>
+                            <td><span class="badge bg-info">{{ h.get_action_display }}</span></td>
+                            <td>{{ h.description }}</td>
+                            <td>{{ h.performed_by|default:"-" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted">No history available</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Assigned To -->
+        <div class="table-card mb-4">
+            <h6 class="mb-3"><i class="fas fa-user me-2"></i>Assigned To</h6>
+            {% if asset.assigned_to %}
+            <div class="text-center">
+                <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px; font-size: 24px;">
+                    {{ asset.assigned_to.first_name.0 }}{{ asset.assigned_to.last_name.0 }}
+                </div>
+                <h6>{{ asset.assigned_to.full_name }}</h6>
+                <p class="text-muted mb-1">{{ asset.assigned_to.department|default:"" }}</p>
+                <p class="text-muted small">{{ asset.assigned_to.email }}</p>
+                <small class="text-muted">Assigned: {{ asset.assigned_date|default:"-" }}</small>
+                <div class="mt-3">
+                    <a href="{% url 'assets:employee_detail' asset.assigned_to.pk %}" class="btn btn-sm btn-outline-primary">View Employee</a>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-user-slash fa-2x text-muted mb-2"></i>
+                <p class="text-muted mb-3">Not assigned</p>
+                <a href="{% url 'assets:assign_asset' asset.pk %}" class="btn btn-sm btn-success">
+                    <i class="fas fa-user-plus me-1"></i> Assign Now
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Vendor Info -->
+        {% if asset.vendor %}
+        <div class="table-card">
+            <h6 class="mb-3"><i class="fas fa-building me-2"></i>Vendor</h6>
+            <p class="mb-1"><strong>{{ asset.vendor.name }}</strong></p>
+            {% if asset.vendor.contact_person %}
+            <p class="mb-1 small">{{ asset.vendor.contact_person }}</p>
+            {% endif %}
+            {% if asset.vendor.email %}
+            <p class="mb-1 small"><i class="fas fa-envelope me-1"></i>{{ asset.vendor.email }}</p>
+            {% endif %}
+            {% if asset.vendor.phone %}
+            <p class="mb-0 small"><i class="fas fa-phone me-1"></i>{{ asset.vendor.phone }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
