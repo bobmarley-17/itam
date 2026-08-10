@@ -1,3 +1,4 @@
-Django>=3.2,<6.0
+# Django 4.2 supports MariaDB 10.3, which is used by the test server.
+Django>=4.2,<5.0
 django-jazzmin>=2.6
 mysqlclient>=2.2
