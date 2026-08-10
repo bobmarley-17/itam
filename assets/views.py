@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User, Group
 from django.contrib import messages
 from django.db.models import Count, Sum, Q
@@ -18,12 +18,28 @@ from .models import (
     Asset, Employee, Category, Department, 
     Location, Vendor, AssetHistory, MaintenanceRecord
 )
+from .decorators import admin_required
 
 
 # ============================================
-# DASHBOARD
+# CORE & DASHBOARDS
 # ============================================
 
+@login_required
+def root_redirect_view(request):
+    """
+    Redirects users to the appropriate dashboard based on their role.
+    Admins and Managers go to the main dashboard, while regular users
+    are sent to their personal dashboard.
+    """
+    if request.user.is_superuser or request.user.groups.filter(name__in=['Admin', 'Manager', 'Technician']).exists():
+        return redirect('assets:dashboard')
+    
+    # Default redirect for regular users/employees
+    return redirect('assets:user_dashboard')
+
+
+@login_required
 @login_required
 def dashboard(request):
     # Aggregate asset statistics in a single query
@@ -124,6 +140,36 @@ def dashboard(request):
     }
     return render(request, 'assets/dashboard.html', context)
 
+
+@login_required
+def user_dashboard(request):
+    """
+    Dashboard for regular users/employees.
+    Shows only assets assigned to them and related activity.
+    """
+    employee = None
+    try:
+        # The related_name on the Employee.user field is 'employee'
+        employee = request.user.employee
+    except Employee.DoesNotExist:
+        # This can happen if a User is created but not linked to an Employee profile.
+        # In a full implementation, we might show a message or force profile completion.
+        pass
+
+    assigned_assets = Asset.objects.none()
+    recent_activity = AssetHistory.objects.none()
+    
+    if employee:
+        assigned_assets = Asset.objects.filter(assigned_to=employee).select_related('category', 'location')
+        recent_activity = AssetHistory.objects.filter(asset__in=assigned_assets).order_by('-created_at')[:5]
+
+    context = {
+        'employee': employee,
+        'assigned_assets': assigned_assets,
+        'recent_activity': recent_activity,
+        'asset_count': assigned_assets.count(),
+    }
+    return render(request, 'assets/user_dashboard.html', context)
 
 # ============================================
 # ASSETS
@@ -1180,12 +1226,8 @@ def history_list(request):
 # USER MANAGEMENT
 # ============================================
 
-def is_admin(user):
-    return user.is_superuser or user.groups.filter(name='Admin').exists()
-
-
 @login_required
-@user_passes_test(is_admin)
+@admin_required
 def user_list(request):
     """List all users (admin only)"""
     users = User.objects.all().order_by('-date_joined')
@@ -1199,7 +1241,7 @@ def user_list(request):
 
 
 @login_required
-@user_passes_test(is_admin)
+@admin_required
 def user_detail(request, pk):
     """View user details (admin only)"""
     user_obj = get_object_or_404(User, pk=pk)
@@ -1216,7 +1258,7 @@ def user_detail(request, pk):
 
 
 @login_required
-@user_passes_test(is_admin)
+@admin_required
 def user_toggle_active(request, pk):
     """Toggle user active status"""
     user_obj = get_object_or_404(User, pk=pk)
@@ -1235,7 +1277,7 @@ def user_toggle_active(request, pk):
 
 
 @login_required
-@user_passes_test(is_admin)
+@admin_required
 def user_change_role(request, pk):
     """Change user role/group"""
     if request.method == 'POST':
@@ -1256,7 +1298,7 @@ def user_change_role(request, pk):
 
 
 @login_required
-@user_passes_test(is_admin)
+@admin_required
 def create_user(request):
     """Create new user"""
     if request.method == 'POST':
@@ -1296,21 +1338,3 @@ def create_user(request):
         'groups': Group.objects.all(),
     }
     return render(request, 'assets/create_user.html', context)
-
-
-@login_required
-@user_passes_test(is_admin)
-def setup_roles(request):
-    """Setup default user roles/groups"""
-    roles = [
-        {'name': 'Admin', 'description': 'Full access to all features'},
-        {'name': 'Manager', 'description': 'Can manage assets and employees'},
-        {'name': 'Technician', 'description': 'Can update asset status and maintenance'},
-        {'name': 'Viewer', 'description': 'Read-only access'},
-    ]
-    
-    for role in roles:
-        Group.objects.get_or_create(name=role['name'])
-    
-    messages.success(request, 'Default roles created: Admin, Manager, Technician, Viewer')
-    return redirect('assets:user_list')

@@ -10,6 +10,9 @@ urlpatterns = [
     # Dashboard
     path('', views.dashboard, name='dashboard'),
 
+    # User-specific Dashboard
+    path('my-dashboard/', views.user_dashboard, name='user_dashboard'),
+
     # Assets
     path('assets/', views.asset_list, name='asset_list'),
     path('assets/<int:pk>/', views.asset_detail, name='asset_detail'),
@@ -43,7 +46,6 @@ urlpatterns = [
     # User Management (Admin only)
     path('users/', views.user_list, name='user_list'),
     path('users/create/', views.create_user, name='create_user'),
-    path('users/setup-roles/', views.setup_roles, name='setup_roles'),
     path('users/<int:pk>/', views.user_detail, name='user_detail'),
     path('users/<int:pk>/toggle-active/', views.user_toggle_active, name='user_toggle_active'),
     path('users/<int:pk>/change-role/', views.user_change_role, name='user_change_role'),
