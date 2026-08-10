@@ -2,12 +2,6 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'your-secret-key-change-in-production'
-
-DEBUG = True
-
-ALLOWED_HOSTS = ['*']
-
 INSTALLED_APPS = [
     'jazzmin', 
     'django.contrib.admin',
@@ -50,14 +44,6 @@ TEMPLATES = [
         },
     },
 ]
-
-# Simple SQLite database (no setup needed)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
