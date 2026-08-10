@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.db.models import Count
 from .models import (
     Department, Employee, Category, Location, 
     Vendor, Asset, AssetHistory, MaintenanceRecord
@@ -12,8 +13,13 @@ class DepartmentAdmin(admin.ModelAdmin):
     search_fields = ['name']
     
     def employee_count(self, obj):
-        return obj.employee_set.count()
+        return obj.employee_count
     employee_count.short_description = 'Employees'
+    employee_count.admin_order_field = 'employee_count'
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.annotate(employee_count=Count('employee'))
 
 
 @admin.register(Employee)
@@ -22,17 +28,23 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_filter = ['is_active', 'department']
     search_fields = ['employee_id', 'first_name', 'last_name', 'email']
     list_editable = ['is_active']
+    list_select_related = ('department',)
     
     def full_name(self, obj):
         return obj.full_name
     full_name.short_description = 'Name'
     
     def asset_count(self, obj):
-        count = obj.assets.count()
+        count = obj.asset_count
         if count > 0:
             return format_html('<span style="color: green; font-weight: bold;">{}</span>', count)
         return count
     asset_count.short_description = 'Assets'
+    asset_count.admin_order_field = 'asset_count'
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.annotate(asset_count=Count('assets'))
 
 
 @admin.register(Category)
@@ -45,8 +57,13 @@ class CategoryAdmin(admin.ModelAdmin):
     icon_display.short_description = 'Icon'
     
     def asset_count(self, obj):
-        return obj.asset_set.count()
+        return obj.asset_count
     asset_count.short_description = 'Assets'
+    asset_count.admin_order_field = 'asset_count'
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.annotate(asset_count=Count('asset'))
 
 
 @admin.register(Location)
@@ -56,18 +73,28 @@ class LocationAdmin(admin.ModelAdmin):
     search_fields = ['name', 'building']
     
     def asset_count(self, obj):
-        return obj.asset_set.count()
+        return obj.asset_count
     asset_count.short_description = 'Assets'
+    asset_count.admin_order_field = 'asset_count'
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.annotate(asset_count=Count('asset'))
 
 
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
     list_display = ['name', 'contact_person', 'email', 'phone', 'asset_count']
     search_fields = ['name', 'contact_person', 'email']
-    
+
     def asset_count(self, obj):
-        return obj.asset_set.count()
+        return obj.asset_count
     asset_count.short_description = 'Assets Purchased'
+    asset_count.admin_order_field = 'asset_count'
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.annotate(asset_count=Count('asset'))
 
 
 class AssetHistoryInline(admin.TabularInline):
@@ -95,6 +122,7 @@ class AssetAdmin(admin.ModelAdmin):
     list_filter = ['status', 'condition', 'category', 'location', 'vendor']
     search_fields = ['asset_tag', 'name', 'serial_number', 'assigned_to__first_name', 'assigned_to__last_name']
     list_editable = ['condition']
+    list_select_related = ('category', 'assigned_to', 'location')
     readonly_fields = ['created_at', 'updated_at', 'created_by']
     date_hierarchy = 'purchase_date'
     
@@ -182,6 +210,7 @@ class MaintenanceRecordAdmin(admin.ModelAdmin):
     list_display = ['asset', 'maintenance_type', 'status_badge', 'scheduled_date', 'completed_date', 'cost']
     list_filter = ['status', 'maintenance_type', 'scheduled_date']
     search_fields = ['asset__asset_tag', 'asset__name', 'description']
+    list_select_related = ('asset',)
     date_hierarchy = 'scheduled_date'
     
     def status_badge(self, obj):
