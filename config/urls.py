@@ -3,8 +3,10 @@ from django.urls import path, include
 from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import RedirectView
 
 urlpatterns = [
+    path('admin/logout', RedirectView.as_view(url='/admin/logout/')),
     path('admin/', admin.site.urls),
     path('', lambda request: redirect('assets:dashboard')),
     path('app/', include('assets.urls')),
