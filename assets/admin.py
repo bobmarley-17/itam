@@ -177,17 +177,28 @@ class AssetAdmin(admin.ModelAdmin):
     warranty_status.short_description = 'Warranty'
     
     def save_model(self, request, obj, form, change):
-        if not change:
+        if not obj.pk:  # When creating a new object, pk is None.
             obj.created_by = request.user
-            super().save_model(request, obj, form, change)
+
+        super().save_model(request, obj, form, change)
+
+        # Log history for creation or changes
+        action_type = 'created' if not change else 'updated'
+        description = ''
+
+        if not change:
+            description = f'Asset {obj.asset_tag} was created.'
+        elif form.changed_data:
+            changed_fields = ', '.join(form.changed_data)
+            description = f'Fields updated: {changed_fields}.'
+
+        if description:  # Only create a history record if something happened
             AssetHistory.objects.create(
                 asset=obj,
-                action='created',
-                description=f'Asset {obj.asset_tag} was created',
+                action=action_type,
+                description=description,
                 performed_by=request.user
             )
-        else:
-            super().save_model(request, obj, form, change)
 
 
 @admin.register(AssetHistory)
