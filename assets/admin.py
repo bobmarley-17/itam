@@ -177,28 +177,36 @@ class AssetAdmin(admin.ModelAdmin):
     warranty_status.short_description = 'Warranty'
     
     def save_model(self, request, obj, form, change):
-        if not obj.pk:  # When creating a new object, pk is None.
+        if not obj.pk:  # When creating a new object
             obj.created_by = request.user
+
+        # Get a reference to the old object for comparison, if it exists
+        old_obj = self.model.objects.filter(pk=obj.pk).first() if change else None
 
         super().save_model(request, obj, form, change)
 
-        # Log history for creation or changes
-        action_type = 'created' if not change else 'updated'
-        description = ''
-
         if not change:
-            description = f'Asset {obj.asset_tag} was created.'
-        elif form.changed_data:
-            changed_fields = ', '.join(form.changed_data)
-            description = f'Fields updated: {changed_fields}.'
-
-        if description:  # Only create a history record if something happened
+            # Log creation
             AssetHistory.objects.create(
                 asset=obj,
-                action=action_type,
-                description=description,
+                action='created',
+                description=f'Asset {obj.asset_tag} was created.',
                 performed_by=request.user
             )
+        elif form.changed_data:
+            # Log updates for each changed field
+            for field_name in form.changed_data:
+                old_value = getattr(old_obj, field_name, None) if old_obj else None
+                new_value = getattr(obj, field_name, None)
+                
+                AssetHistory.objects.create(
+                    asset=obj,
+                    action='updated',
+                    description=f'Field "{field_name.replace("_", " ").title()}" changed.',
+                    old_value=str(old_value or 'Empty')[:255],
+                    new_value=str(new_value or 'Empty')[:255],
+                    performed_by=request.user
+                )
 
 
 @admin.register(AssetHistory)
