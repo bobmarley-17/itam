@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block page_icon %}tags{% endblock %}
+{% block page_title %}Print Asset Labels{% endblock %}
+
+{% block content %}
+<div class="table-card">
+    <h5 class="mb-4"><i class="fas fa-tags me-2"></i>Select Assets for Labels</h5>
+    <form method="post">
+        {% csrf_token %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead><tr><th><input type="checkbox" onclick="document.querySelectorAll('.asset-choice').forEach(item => item.checked = this.checked)"></th><th>Asset Tag</th><th>Name</th></tr></thead>
+                <tbody>
+                    {% for asset in assets %}
+                    <tr><td><input class="asset-choice" type="checkbox" name="asset_ids" value="{{ asset.pk }}"></td><td>{{ asset.asset_tag }}</td><td>{{ asset.name }}</td></tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center text-muted">No assets found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <button type="submit" class="btn btn-primary">Print Selected Labels</button>
+    </form>
+</div>
+{% endblock %}

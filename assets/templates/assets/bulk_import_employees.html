@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block page_icon %}users{% endblock %}
+{% block page_title %}Bulk Import Employees{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="table-card">
+            <h5 class="mb-4"><i class="fas fa-file-upload me-2"></i>Import Employees from Excel</h5>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label class="form-label" for="employee-file">Select Excel File</label>
+                    <input id="employee-file" type="file" name="file" class="form-control form-control-lg" accept=".xlsx,.xls" required>
+                    <small class="text-muted">Required columns: employee_id, first_name, last_name, email. Optional: department, phone, position.</small>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-upload me-2"></i>Import Employees</button>
+                <a href="{% url 'assets:employee_list' %}" class="btn btn-outline-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

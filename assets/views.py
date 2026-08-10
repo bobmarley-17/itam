@@ -2,13 +2,16 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User, Group
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.core.mail import send_mail, EmailMessage
 from django.template.loader import render_to_string
 from django.conf import settings
+from django.views.decorators.http import require_POST
 from datetime import timedelta
+from decimal import Decimal
 import json
 import os
 import io
@@ -17,6 +20,21 @@ from .models import (
     Asset, Employee, Category, Department, 
     Location, Vendor, AssetHistory, MaintenanceRecord
 )
+
+
+def has_any_role(user, *roles):
+    """Return whether a user holds one of the application roles."""
+    return user.is_authenticated and (
+        user.is_superuser or user.groups.filter(name__in=roles).exists()
+    )
+
+
+def is_admin(user):
+    return has_any_role(user, 'Admin')
+
+
+def can_manage_assets(user):
+    return has_any_role(user, 'Admin', 'Manager')
 
 
 # ============================================
@@ -187,6 +205,7 @@ def asset_detail(request, pk):
 
 
 @login_required
+@user_passes_test(can_manage_assets)
 def assign_asset(request, pk):
     asset = get_object_or_404(Asset, pk=pk)
     
@@ -195,7 +214,11 @@ def assign_asset(request, pk):
         send_email = request.POST.get('send_email', False)
         
         if employee_id:
-            employee = get_object_or_404(Employee, pk=employee_id)
+            if asset.status != 'available':
+                messages.error(request, 'Only available assets can be assigned.')
+                return redirect('assets:asset_detail', pk=pk)
+
+            employee = get_object_or_404(Employee, pk=employee_id, is_active=True)
             old_assignee = asset.assigned_to
             
             # Update asset
@@ -236,6 +259,7 @@ def assign_asset(request, pk):
 
 
 @login_required
+@user_passes_test(can_manage_assets)
 def unassign_asset(request, pk):
     asset = get_object_or_404(Asset, pk=pk)
     
@@ -392,6 +416,7 @@ def bulk_print_labels(request):
 # ============================================
 
 @login_required
+@user_passes_test(can_manage_assets)
 def bulk_import(request):
     """Bulk import assets from Excel"""
     if request.method == 'POST':
@@ -422,57 +447,67 @@ def bulk_import(request):
             error_count = 0
             errors = []
             
+            valid_statuses = {value for value, _ in Asset.STATUS_CHOICES}
+            valid_conditions = {value for value, _ in Asset.CONDITION_CHOICES}
+
             for index, row in df.iterrows():
                 try:
-                    # Get or create category
-                    category = None
-                    if 'category' in df.columns and pd.notna(row.get('category')):
-                        category, _ = Category.objects.get_or_create(
-                            name=str(row['category']).strip()
-                        )
-                    
-                    # Get or create location
-                    location = None
-                    if 'location' in df.columns and pd.notna(row.get('location')):
-                        location, _ = Location.objects.get_or_create(
-                            name=str(row['location']).strip()
-                        )
-                    
-                    # Get or create vendor
-                    vendor = None
-                    if 'vendor' in df.columns and pd.notna(row.get('vendor')):
-                        vendor, _ = Vendor.objects.get_or_create(
-                            name=str(row['vendor']).strip()
-                        )
-                    
-                    # Create asset
-                    asset, created = Asset.objects.update_or_create(
-                        asset_tag=str(row['asset_tag']).strip(),
-                        defaults={
-                            'name': str(row['name']).strip(),
-                            'description': str(row.get('description', '')).strip() if pd.notna(row.get('description')) else '',
-                            'category': category,
-                            'manufacturer': str(row.get('manufacturer', '')).strip() if pd.notna(row.get('manufacturer')) else '',
-                            'model': str(row.get('model', '')).strip() if pd.notna(row.get('model')) else '',
-                            'serial_number': str(row.get('serial_number', '')).strip() if pd.notna(row.get('serial_number')) else None,
-                            'status': str(row.get('status', 'available')).strip().lower() if pd.notna(row.get('status')) else 'available',
-                            'condition': str(row.get('condition', 'new')).strip().lower() if pd.notna(row.get('condition')) else 'new',
-                            'location': location,
-                            'vendor': vendor,
-                            'purchase_cost': float(row['purchase_cost']) if 'purchase_cost' in df.columns and pd.notna(row.get('purchase_cost')) else None,
-                            'notes': str(row.get('notes', '')).strip() if pd.notna(row.get('notes')) else '',
-                            'created_by': request.user,
-                        }
-                    )
-                    
-                    if created:
-                        # Create history
-                        AssetHistory.objects.create(
-                            asset=asset,
-                            action='created',
-                            description=f'Asset imported via bulk upload',
-                            performed_by=request.user
-                        )
+                    asset_tag = str(row['asset_tag']).strip() if pd.notna(row['asset_tag']) else ''
+                    name = str(row['name']).strip() if pd.notna(row['name']) else ''
+                    if not asset_tag or not name:
+                        raise ValueError('asset_tag and name are required')
+
+                    status = str(row.get('status', 'available')).strip().lower() if pd.notna(row.get('status')) else 'available'
+                    condition = str(row.get('condition', 'new')).strip().lower() if pd.notna(row.get('condition')) else 'new'
+                    if status not in valid_statuses:
+                        raise ValueError(f'Invalid status: {status}')
+                    if condition not in valid_conditions:
+                        raise ValueError(f'Invalid condition: {condition}')
+
+                    with transaction.atomic():
+                        category = None
+                        if 'category' in df.columns and pd.notna(row.get('category')):
+                            category, _ = Category.objects.get_or_create(name=str(row['category']).strip())
+
+                        location = None
+                        if 'location' in df.columns and pd.notna(row.get('location')):
+                            location, _ = Location.objects.get_or_create(name=str(row['location']).strip())
+
+                        vendor = None
+                        if 'vendor' in df.columns and pd.notna(row.get('vendor')):
+                            vendor, _ = Vendor.objects.get_or_create(name=str(row['vendor']).strip())
+
+                        purchase_cost = None
+                        if 'purchase_cost' in df.columns and pd.notna(row.get('purchase_cost')):
+                            purchase_cost = Decimal(str(row['purchase_cost']))
+                            if purchase_cost < 0:
+                                raise ValueError('purchase_cost cannot be negative')
+
+                        asset, created = Asset.objects.get_or_create(asset_tag=asset_tag)
+                        asset.name = name
+                        asset.description = str(row.get('description', '')).strip() if pd.notna(row.get('description')) else ''
+                        asset.category = category
+                        asset.manufacturer = str(row.get('manufacturer', '')).strip() if pd.notna(row.get('manufacturer')) else ''
+                        asset.model = str(row.get('model', '')).strip() if pd.notna(row.get('model')) else ''
+                        asset.serial_number = str(row.get('serial_number', '')).strip() if pd.notna(row.get('serial_number')) else None
+                        asset.status = status
+                        asset.condition = condition
+                        asset.location = location
+                        asset.vendor = vendor
+                        asset.purchase_cost = purchase_cost
+                        asset.notes = str(row.get('notes', '')).strip() if pd.notna(row.get('notes')) else ''
+                        if created:
+                            asset.created_by = request.user
+                        asset.full_clean()
+                        asset.save()
+
+                        if created:
+                            AssetHistory.objects.create(
+                                asset=asset,
+                                action='created',
+                                description='Asset imported via bulk upload',
+                                performed_by=request.user,
+                            )
                     
                     success_count += 1
                     
@@ -498,6 +533,7 @@ def bulk_import(request):
 
 
 @login_required
+@user_passes_test(can_manage_assets)
 def download_import_template(request):
     """Download Excel template for bulk import"""
     try:
@@ -559,6 +595,7 @@ def download_import_template(request):
 
 
 @login_required
+@user_passes_test(can_manage_assets)
 def bulk_import_employees(request):
     """Bulk import employees from Excel"""
     if request.method == 'POST':
@@ -785,6 +822,7 @@ def generate_asset_pdf(request, pk):
 
 
 @login_required
+@user_passes_test(can_manage_assets)
 def generate_all_assets_pdf(request):
     """Generate PDF report for all assets"""
     try:
@@ -853,6 +891,7 @@ def generate_all_assets_pdf(request):
 # ============================================
 
 @login_required
+@user_passes_test(can_manage_assets)
 def export_assets(request):
     """Export assets to Excel"""
     try:
@@ -921,6 +960,7 @@ def export_assets(request):
 
 
 @login_required
+@user_passes_test(can_manage_assets)
 def export_employees(request):
     """Export employees to Excel"""
     try:
@@ -1040,6 +1080,8 @@ IT Asset Management System
 
 
 @login_required
+@user_passes_test(can_manage_assets)
+@require_POST
 def send_warranty_alerts(request):
     """Send warranty expiry alerts"""
     thirty_days = timezone.now().date() + timedelta(days=30)
@@ -1173,9 +1215,6 @@ def history_list(request):
 # USER MANAGEMENT
 # ============================================
 
-def is_admin(user):
-    return user.is_superuser or user.groups.filter(name='Admin').exists()
-
 
 @login_required
 @user_passes_test(is_admin)
@@ -1210,6 +1249,7 @@ def user_detail(request, pk):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def user_toggle_active(request, pk):
     """Toggle user active status"""
     user_obj = get_object_or_404(User, pk=pk)
@@ -1229,21 +1269,20 @@ def user_toggle_active(request, pk):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def user_change_role(request, pk):
     """Change user role/group"""
-    if request.method == 'POST':
-        user_obj = get_object_or_404(User, pk=pk)
-        group_id = request.POST.get('group_id')
-        
-        # Clear existing groups
-        user_obj.groups.clear()
-        
-        if group_id:
-            group = get_object_or_404(Group, pk=group_id)
-            user_obj.groups.add(group)
-            messages.success(request, f"User {user_obj.username} added to {group.name} group")
-        else:
-            messages.success(request, f"User {user_obj.username} removed from all groups")
+    user_obj = get_object_or_404(User, pk=pk)
+    group_id = request.POST.get('group_id')
+    group = get_object_or_404(Group, pk=group_id) if group_id else None
+
+    with transaction.atomic():
+        user_obj.groups.set([group] if group else [])
+
+    if group:
+        messages.success(request, f"User {user_obj.username} added to {group.name} group")
+    else:
+        messages.success(request, f"User {user_obj.username} removed from all groups")
     
     return redirect('assets:user_detail', pk=pk)
 
@@ -1253,13 +1292,17 @@ def user_change_role(request, pk):
 def create_user(request):
     """Create new user"""
     if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
         password = request.POST.get('password')
         first_name = request.POST.get('first_name', '')
         last_name = request.POST.get('last_name', '')
-        is_staff = request.POST.get('is_staff', False)
+        is_staff = request.POST.get('is_staff') == 'on'
         group_id = request.POST.get('group_id')
+
+        if not username or not email or not password:
+            messages.error(request, 'Username, email, and password are required')
+            return redirect('assets:create_user')
         
         if User.objects.filter(username=username).exists():
             messages.error(request, 'Username already exists')
@@ -1268,6 +1311,8 @@ def create_user(request):
         if User.objects.filter(email=email).exists():
             messages.error(request, 'Email already exists')
             return redirect('assets:create_user')
+
+        group = get_object_or_404(Group, pk=group_id) if group_id else None
         
         user = User.objects.create_user(
             username=username,
@@ -1278,8 +1323,7 @@ def create_user(request):
             is_staff=bool(is_staff),
         )
         
-        if group_id:
-            group = get_object_or_404(Group, pk=group_id)
+        if group:
             user.groups.add(group)
         
         messages.success(request, f'User {username} created successfully')
@@ -1293,6 +1337,7 @@ def create_user(request):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def setup_roles(request):
     """Setup default user roles/groups"""
     roles = [

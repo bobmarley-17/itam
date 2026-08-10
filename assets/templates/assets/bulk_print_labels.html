@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block page_icon %}tags{% endblock %}
+{% block page_title %}Asset Labels{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end mb-3 no-print"><button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print me-2"></i>Print</button></div>
+<div class="row g-3">
+    {% for asset in assets %}
+    <div class="col-md-4">
+        <div class="border rounded p-3 text-center">
+            <strong>{{ asset.asset_tag }}</strong>
+            <div>{{ asset.name }}</div>
+            <img src="{% url 'assets:generate_qr_code' asset.pk %}" alt="QR code for {{ asset.asset_tag }}" class="img-fluid mt-2" style="max-width: 160px;">
+        </div>
+    </div>
+    {% empty %}
+    <p class="text-muted">No assets were selected.</p>
+    {% endfor %}
+</div>
+{% endblock %}

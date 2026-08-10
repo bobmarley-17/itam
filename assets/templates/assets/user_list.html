@@ -8,9 +8,12 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h5 class="mb-0"><i class="fas fa-users-cog me-2"></i>All Users</h5>
         <div>
-            <a href="{% url 'assets:setup_roles' %}" class="btn btn-outline-primary me-2">
-                <i class="fas fa-shield-alt me-1"></i>Setup Roles
-            </a>
+            <form method="post" action="{% url 'assets:setup_roles' %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-shield-alt me-1"></i>Setup Roles
+                </button>
+            </form>
             <a href="{% url 'assets:create_user' %}" class="btn btn-primary">
                 <i class="fas fa-user-plus me-1"></i>Create User
             </a>
@@ -60,9 +63,12 @@
                             <i class="fas fa-eye"></i>
                         </a>
                         {% if u != request.user %}
-                        <a href="{% url 'assets:user_toggle_active' u.pk %}" class="btn btn-sm btn-outline-{% if u.is_active %}warning{% else %}success{% endif %}">
-                            <i class="fas fa-{% if u.is_active %}ban{% else %}check{% endif %}"></i>
-                        </a>
+                        <form method="post" action="{% url 'assets:user_toggle_active' u.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-{% if u.is_active %}warning{% else %}success{% endif %}">
+                                <i class="fas fa-{% if u.is_active %}ban{% else %}check{% endif %}"></i>
+                            </button>
+                        </form>
                         {% endif %}
                     </td>
                 </tr>
